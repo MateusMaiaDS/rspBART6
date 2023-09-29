@@ -43,3 +43,13 @@ mlbench.d1.break <- function(n, sd = 1) {
   }
   list(x = x, y = y)
 }
+
+mlbench.d1 <- function(n, sd = 1) {
+  x <- matrix(runif(n,min = -pi,max = pi),ncol = 1)
+  y <- sin(2*x)
+
+  if (sd > 0) {
+    y <- y + rnorm(n, sd = sd)
+  }
+  list(x = x, y = y)
+}

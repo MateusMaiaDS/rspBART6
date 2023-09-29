@@ -230,7 +230,10 @@ rspBART <- function(x_train,
     # New update
     m_tilda <- mean(diag(tcrossprod(D_train)))
     # Maybe need to change that in the future
+
+    # tau_mu <- 4*n_tree*(kappa^2)
     tau_mu <- 4*n_tree*(kappa^2)*(m_tilda)*(nIknots-1)
+
 
 
   } else {
@@ -238,7 +241,9 @@ rspBART <- function(x_train,
 
     # New parameter update
     m_tilda <- mean(diag(tcrossprod(D_train)))
-    tau_mu <- (4*n_tree*(kappa^2)*(m_tilda)*(nIknots-1))/((max_y-min_y)^2)
+    tau_mu <- (4*n_tree*(kappa^2))/((max_y-min_y)^2)
+    # tau_mu <- (4*n_tree*(kappa^2)*(m_tilda)*(nIknots-1))/((max_y-min_y)^2)
+
 
   }
 
