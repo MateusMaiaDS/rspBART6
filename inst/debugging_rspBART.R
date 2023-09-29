@@ -8,8 +8,8 @@ sd_ <- 1
 sim_train <- mlbench.d1.break(n = n_,sd = 1)  |> as.data.frame()
 sim_test <- mlbench.d1.break(n = n_,sd = 1) |> as.data.frame()
 
-sim_train <- mlbench.d1(n = n_,sd = 1)  |> as.data.frame()
-sim_test <- mlbench.d1(n = n_,sd = 1) |> as.data.frame()
+# sim_train <- mlbench.d1(n = n_,sd = 1)  |> as.data.frame()
+# sim_test <- mlbench.d1(n = n_,sd = 1) |> as.data.frame()
 
 x_train <- sim_train |> dplyr::select(dplyr::starts_with("x"))
 x_test <-  sim_test|> dplyr::select(dplyr::starts_with("x"))
@@ -17,7 +17,7 @@ y_train <- sim_train$y
 
 # x_train <- x_train[,1:5]
 # x_test <- x_test[,1:5]
-n_tree <- 10
+n_tree <- 50
 node_min_size = 5
 n_mcmc = 3000
 n_burn = 0
