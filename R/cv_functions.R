@@ -5,8 +5,7 @@ all_bart <- function(cv_element,
                      seed_,
                      motr_bart_,
                      rsp_bart_all_,
-                     alpha_ = 0.95,
-                     intercept_){
+                     alpha_ = 0.95){
 
   # To replicate the results
   set.seed(seed_)
@@ -24,7 +23,6 @@ all_bart <- function(cv_element,
                     n_mcmc = 2500,node_min_size = 5,alpha = alpha_,
                     n_burn = 0,nIknots = nIknots_,n_tree = ntree_,
                     use_bs = use_bs_,scale_bool = TRUE,plot_preview = FALSE,
-                    intercept = intercept_,
                     dif_order = 0,motrbart_bool = motr_bart_)
 
   if(rsp_bart_all_){
@@ -88,8 +86,7 @@ all_bart_lite <- function(cv_element,
                      use_bs_,
                      j,
                      motr_bart_,
-                     alpha_,
-                     intercept_){
+                     alpha_){
 
 
   # Doing a warming for the case whichI don't have
@@ -117,7 +114,6 @@ all_bart_lite <- function(cv_element,
                     n_mcmc = 2500,node_min_size = 5,alpha = alpha_,
                     n_burn = 0,nIknots = nIknots_,n_tree = ntree_,
                     use_bs = use_bs_,
-                    intercept = intercept_,
                     dif_order = 0,motrbart_bool = motr_bart_)
 
 

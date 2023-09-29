@@ -637,8 +637,8 @@ getPredictions <- function(tree,
                            data){
 
   # Creating the vector to hold the values of the prediction
-  y_hat <- matrix(0, nrow = nrow(data$x_train), ncol = ncol(data$x_train)+1)
-  y_hat_test <- matrix(0,nrow(data$x_test), ncol = ncol(data$x_test)+ 1 )
+  y_hat <- matrix(0, nrow = nrow(data$x_train), ncol = ncol(data$x_train))
+  y_hat_test <- matrix(0,nrow(data$x_test), ncol = ncol(data$x_test))
 
   # Getting terminal nodes
   t_nodes <- get_terminals(tree = tree)
