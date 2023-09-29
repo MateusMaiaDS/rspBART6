@@ -13,7 +13,7 @@ y_train <- sim_train$y
 
 # x_train <- x_train[,1:5]
 # x_test <- x_test[,1:5]
-n_tree <- 50
+n_tree <- 10
 node_min_size = 5
 n_mcmc = 3000
 n_burn = 0

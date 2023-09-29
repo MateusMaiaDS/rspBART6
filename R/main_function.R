@@ -396,7 +396,7 @@ rspBART <- function(x_train,
 
       # Forcing to grow when only have a stump
       if(length(forest[[t]])==1){
-        verb <- "grow"
+        verb <- sample(c("grow","change"),size = 1)
       }
 
 

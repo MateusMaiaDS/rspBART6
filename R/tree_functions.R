@@ -86,6 +86,10 @@ nodeLogLike <- function(curr_part_res,
   d_basis <- length(D_subset_index)
   D_leaf <- data$D_train[index_node,D_subset_index, drop = FALSE]
 
+  if(NCOL(D_leaf)==0){
+    stop(" Node Log-likelihood: No ancestors")
+  }
+
   # Using the Andrew's approach I would have
   mean_aux <- rep(0,length(curr_part_res_leaf))
   cov_aux <- diag(x = (data$tau^(-1)),nrow = n_leaf) + (data$tau_beta^(-1))*tcrossprod(D_leaf)
@@ -305,7 +309,7 @@ prune <- function(tree,
 
   p_right_loglike <-  nodeLogLike(curr_part_res = curr_part_res,
                                   index_node = children_right_index,
-                                  ancestors = unique(children_right_index),
+                                  ancestors = unique(children_right_ancestors),
                                   data = data)
 
   # Calculating the prior
@@ -341,11 +345,55 @@ prune <- function(tree,
 
 }
 
+change_stump <- function(tree = tree,
+             curr_part_res = curr_part_res,
+             data = data){
+
+  # Getting the stump
+  c_node <- tree$node0
+
+  # Proposing a change to the stump
+  change_candidates <- which(!(1:NCOL(data$x_train) %in% c_node$ancestors))
+
+  # In case there's other proposal trees (only for 1-d case)
+  if(length(change_candidates)==0){
+    # Gettina grown tree
+    grown_tree <- grow(tree = tree,
+         curr_part_res = curr_part_res,
+         data = data)
+    return(grown_tree)
+  }
+
+  new_ancestor <- sample(change_candidates,size = 1)
+
+
+  new_stump_loglikelihood <- nodeLogLike(curr_part_res = curr_part_res,
+                           ancestors = new_ancestor,
+                           index_node = c_node$train_index,
+                           data = data)
+
+  # Modifying the node0
+  tree$node0$ancestors <- new_ancestors
+
+  # Returning the new tree
+  return(tree)
+
+
+}
+
 
 # Change a tree
 change <- function(tree,
                    curr_part_res,
                    data){
+
+  # Changing the stump
+  if(length(tree)==1){
+    change_stump_obj <- change_stump(tree = tree,
+                                 curr_part_res = curr_part_res,
+                                 data = data)
+    return(change_stump_obj)
+  }
 
   # Sampling a terminal node
   nog_nodes <- get_nogs(tree)
