@@ -18,7 +18,7 @@ use_bs_ <- FALSE
 seed_ <- 42
 motr_bart_ <- FALSE
 all_ <- FALSE
-alpha_ <- 0.95
+alpha_ <- 0.1
 
 print(paste0("N: ",n_," SD: ", sd_, " nIknots: ", nIknots_,
              " Ntree: ",ntree_, " Seed: ",seed_, " Alpha:", alpha_))
@@ -28,11 +28,11 @@ cv_ <- vector("list", n_rep_)
 for( i in 1:n_rep_){
 
 
-    train <- mlbench.d1.break(n = n_,sd = sd_) %>% as.data.frame()
-    test <- mlbench.d1.break(n = n_,sd = sd_) %>% as.data.frame()
+    # train <- mlbench.d1.break(n = n_,sd = sd_) %>% as.data.frame()
+    # test <- mlbench.d1.break(n = n_,sd = sd_) %>% as.data.frame()
 
-    # train <- mlbench.friedman1.nointeraction(n = n_,sd = sd_) %>% as.data.frame()
-    # test <- mlbench.friedman1.nointeraction(n = n_,sd = sd_) %>% as.data.frame()
+    train <- mlbench.friedman1.nointeraction(n = n_,sd = sd_) %>% as.data.frame()
+    test <- mlbench.friedman1.nointeraction(n = n_,sd = sd_) %>% as.data.frame()
 
     # train <- mlbench.friedman1.nointeraction.noise(n = n_,sd = sd_) %>% as.data.frame()
     # test <- mlbench.friedman1.nointeraction.noise(n = n_,sd = sd_) %>% as.data.frame()
@@ -87,9 +87,9 @@ stopCluster(cl)
 
 # Saving all
 if(all_){
-saveRDS(object = result,file = paste0("/localusers/researchers/mmarques/spline_bart_lab/preliminar_results/rspBART6/oned_n_",n_,
+saveRDS(object = result,file = paste0("/localusers/researchers/mmarques/spline_bart_lab/preliminar_results/rspBART6/friedman_noint_nonoise/oned_n_",n_,
                "_sd_",sd_,"_nIknots_",nIknots_,"_ntree_",ntree_,"_bs_",use_bs_,"_motr_bart_",motr_bart_,"_allvar_",all_,".Rds"))
 } else {
-  saveRDS(object = result,file = paste0("/localusers/researchers/mmarques/spline_bart_lab/preliminar_results/rspBART6/oned_n_",n_,
+  saveRDS(object = result,file = paste0("/localusers/researchers/mmarques/spline_bart_lab/preliminar_results/rspBART6/friedman_noint_nonoise/oned_n_",n_,
                                         "_sd_",sd_,"_nIknots_",nIknots_,"_ntree_",ntree_,"_bs_",use_bs_,"_motr_bart_",motr_bart_,"_alpha_",alpha_,".Rds"))
 }

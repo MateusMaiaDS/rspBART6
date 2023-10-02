@@ -571,6 +571,7 @@ updateBetas <- function(tree,
     Q_ <- (crossprod(D_leaf) + diag(data$tau_beta/data$tau, nrow = NCOL(D_leaf)))
     # Check this line again if there's any bug on the cholesky decomposition
     Q_inv_ <- chol2inv(chol(Q_))
+    # Q_inv_ <- solve(Q_)
 
     # tree[[t_nodes_names[i]]]$betas_vec[leaf_basis_subindex] <- c(keefe_mvn_sampler(b = b_,Q = Q_))
     tree[[t_nodes_names[i]]]$betas_vec[leaf_basis_subindex] <- mvnfast::rmvn(n = 1,mu = Q_inv_%*%b_,sigma = (data$tau^(-1))*Q_inv_)
