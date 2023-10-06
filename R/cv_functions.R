@@ -5,7 +5,8 @@ all_bart <- function(cv_element,
                      seed_,
                      motr_bart_,
                      rsp_bart_all_,
-                     alpha_ = 0.95){
+                     alpha_ = 0.95,
+                     stump_){
 
   # To replicate the results
   set.seed(seed_)
@@ -26,12 +27,13 @@ all_bart <- function(cv_element,
                     dif_order = 0,motrbart_bool = motr_bart_)
 
   if(rsp_bart_all_){
-    spBART_all <- rspBART5::rspBART(x_train = x_train,
+    spBART_all <- rspBART(x_train = x_train,
                                     x_test = x_test,y_train = y_train,
                                     n_mcmc = 2500,node_min_size = 5, alpha = alpha_,
                                     n_burn = 0,nIknots = nIknots_,n_tree = ntree_,
                                     use_bs = use_bs_,scale_bool = TRUE,plot_preview = FALSE,
-                                    dif_order = 0,motrbart_bool = motr_bart_)
+                                    dif_order = 0,motrbart_bool = motr_bart_,
+                                    all_var = rsp_bart_all_)
   }
 
   bartmod <- dbarts::bart(x.train = x_train,y.train = y_train,x.test = x_test)
@@ -40,7 +42,14 @@ all_bart <- function(cv_element,
   if(ncol(x_train)>=2){
     softbartmod <- SoftBart::softbart(X = x_train,Y = y_train,X_test =  x_test)
     motr_bart_mod <- motr_bart(x = x_train,y = y_train,ntrees = ntree_)
-    motrbart_pred <- predict_motr_bart(object = motr_bart_mod,newdata = x_test,type = "all")
+    # motrbart_pred <- predict_motr_bart(object = motr_bart_mod,newdata = x_test,type = "all")
+
+    if(ntree_>1){
+      motrbart_pred <- predict_motr_bart(object = motr_bart_mod,newdata = x_test,type = "all")
+    } else {
+      motrbart_pred <- NULL
+    }
+
   } else {
     x_train_new <- cbind(x_train,x_train)
     x_test_new <- cbind(x_test,x_test)
@@ -48,6 +57,7 @@ all_bart <- function(cv_element,
 
     softbartmod <- SoftBart::softbart(X = x_train_new,Y = y_train,X_test =  x_test_new)
     motr_bart_mod <- motr_bart(x = x_train_new,y = y_train,ntrees = ntree_)
+
     # motr_bart_mod$y_hat
     if(ntree_>1){
       motrbart_pred <- predict_motr_bart(object = motr_bart_mod,newdata = x_test_new,type = "all")
@@ -86,13 +96,17 @@ all_bart_lite <- function(cv_element,
                      use_bs_,
                      j,
                      motr_bart_,
-                     alpha_){
+                     alpha_,
+                     rsp_bart_all_,
+                     stump_,
+                     scale_init_,
+                     update_tau_beta_){
 
 
   # Doing a warming for the case whichI don't have
-  if(ntree_<=50){
-    stop("Use the all_bart() function instead.")
-  }
+  # if(ntree_<50){
+  #   stop("Use the all_bart() function instead.")
+  # }
 
   # To replicate the results
   set.seed(seed_)
@@ -113,8 +127,9 @@ all_bart_lite <- function(cv_element,
                     x_test = x_test,y_train = y_train,
                     n_mcmc = 2500,node_min_size = 5,alpha = alpha_,
                     n_burn = 0,nIknots = nIknots_,n_tree = ntree_,
-                    use_bs = use_bs_,
-                    dif_order = 0,motrbart_bool = motr_bart_)
+                    use_bs = use_bs_,all_var = FALSE,stump = FALSE,
+                    dif_order = 0,motrbart_bool = motr_bart_,
+                    scale_init = scale_init_,update_tau_beta = update_tau_beta_)
 
 
   n_burn_ <- 500
@@ -147,6 +162,91 @@ all_bart_lite <- function(cv_element,
   # Removing the model
   rm(spBART)
 
+  if(rsp_bart_all_){
+    # Running the model
+    spBART <- rspBART(x_train = x_train,
+                      x_test = x_test,y_train = y_train,
+                      n_mcmc = 2500,node_min_size = 5,alpha = alpha_,
+                      n_burn = 0,nIknots = nIknots_,n_tree = ntree_,
+                      use_bs = use_bs_,all_var = rsp_bart_all_,
+                      stump = FALSE,
+                      dif_order = 0,motrbart_bool = motr_bart_,
+                      scale_init = scale_init_,update_tau_beta = update_tau_beta_)
+
+
+    n_burn_ <- 500
+    n_mcmc_ <- spBART$mcmc$n_mcmc
+
+    # Calculating metrics for splinesBART
+    comparison_metrics <- rbind(comparison_metrics,data.frame(metric = "rmse_train",
+                                                              value = rmse(x = colMeans(spBART$y_train_hat[(n_burn_+1):n_mcmc_,,drop = FALSE]),
+                                                                           y = train$y),
+                                                              model = "spBART_all",fold = j))
+
+    comparison_metrics <- rbind(comparison_metrics,data.frame(metric = "rmse_test",
+                                                              value = rmse(x = colMeans(spBART$y_test_hat[(n_burn_+1):n_mcmc_,,drop = FALSE]),
+                                                                           y = test$y),
+                                                              model = "spBART_all",fold = j))
+
+    # Calculating the CRPS as well
+    comparison_metrics <- rbind(comparison_metrics,data.frame(metric = "crps_train",
+                                                              value = crps(y = train$y ,
+                                                                           means = colMeans(spBART$y_train_hat[(n_burn_+1):n_mcmc_,,drop = FALSE]),
+                                                                           sds = rep(mean(spBART$all_tau[(n_burn_+1):n_mcmc_])^(-1/2), length(train$y)))$CRPS,
+                                                              model = "spBART_all",fold = j))
+
+    comparison_metrics <- rbind(comparison_metrics,data.frame(metric = "crps_test",
+                                                              value = crps(y = test$y ,
+                                                                           means = colMeans(spBART$y_test_hat[(n_burn_+1):n_mcmc_,,drop = FALSE]),
+                                                                           sds = rep(mean(spBART$all_tau[(n_burn_+1):n_mcmc_])^(-1/2), length(test$y)))$CRPS,
+                                                              model = "spBART_all",fold = j))
+
+    # Removing the model
+    rm(spBART)
+  }
+
+
+  if(rsp_bart_all_){
+    # Running the model
+    spBART <- rspBART(x_train = x_train,
+                      x_test = x_test,y_train = y_train,
+                      n_mcmc = 2500,node_min_size = 5,alpha = alpha_,
+                      n_burn = 0,nIknots = nIknots_,n_tree = ntree_,
+                      use_bs = use_bs_,all_var = rsp_bart_all_,
+                      dif_order = 0,motrbart_bool = motr_bart_,stump = stump_,
+                      scale_init = scale_init_,update_tau_beta = update_tau_beta_)
+
+
+    n_burn_ <- 500
+    n_mcmc_ <- spBART$mcmc$n_mcmc
+
+    # Calculating metrics for splinesBART
+    comparison_metrics <- rbind(comparison_metrics,data.frame(metric = "rmse_train",
+                                                              value = rmse(x = colMeans(spBART$y_train_hat[(n_burn_+1):n_mcmc_,,drop = FALSE]),
+                                                                           y = train$y),
+                                                              model = "spBART_stump",fold = j))
+
+    comparison_metrics <- rbind(comparison_metrics,data.frame(metric = "rmse_test",
+                                                              value = rmse(x = colMeans(spBART$y_test_hat[(n_burn_+1):n_mcmc_,,drop = FALSE]),
+                                                                           y = test$y),
+                                                              model = "spBART_stump",fold = j))
+
+    # Calculating the CRPS as well
+    comparison_metrics <- rbind(comparison_metrics,data.frame(metric = "crps_train",
+                                                              value = crps(y = train$y ,
+                                                                           means = colMeans(spBART$y_train_hat[(n_burn_+1):n_mcmc_,,drop = FALSE]),
+                                                                           sds = rep(mean(spBART$all_tau[(n_burn_+1):n_mcmc_])^(-1/2), length(train$y)))$CRPS,
+                                                              model = "spBART_stump",fold = j))
+
+    comparison_metrics <- rbind(comparison_metrics,data.frame(metric = "crps_test",
+                                                              value = crps(y = test$y ,
+                                                                           means = colMeans(spBART$y_test_hat[(n_burn_+1):n_mcmc_,,drop = FALSE]),
+                                                                           sds = rep(mean(spBART$all_tau[(n_burn_+1):n_mcmc_])^(-1/2), length(test$y)))$CRPS,
+                                                              model = "spBART_stump",fold = j))
+
+    # Removing the model
+    rm(spBART)
+  }
   # Initializing the modelling for the BART model.
   bartmod <- dbarts::bart(x.train = x_train,y.train = y_train,x.test = x_test)
 
@@ -207,6 +307,7 @@ all_bart_lite <- function(cv_element,
 
       # Doing for MOTR-BART
       motrbartmod <- motr_bart(x = x_train,y = y_train,ancestors = TRUE,ntrees = ntree_)
+      if(ntree_!=1){
       motrbart_pred <- predict_motr_bart(object = motrbartmod,newdata = x_test,type = "all")
 
       comparison_metrics <- rbind(comparison_metrics,data.frame(metric = "rmse_train",
@@ -231,7 +332,7 @@ all_bart_lite <- function(cv_element,
                                                                              means = colMeans(motrbart_pred),
                                                                              sds = rep(mean(sqrt(motrbartmod$sigma2)), length(test$y) ))$CRPS,
                                                                 model = "motrBART",fold = j))
-
+      }
       rm(motrbartmod)
 
   } else {
@@ -270,31 +371,33 @@ all_bart_lite <- function(cv_element,
 
     # Doing for MOTR-BART
     motrbartmod <- motr_bart(x = x_train_new,y = y_train,ancestors = TRUE,ntrees = ntree_)
-    motrbart_pred <- predict_motr_bart(object = motrbartmod,newdata = x_test_new,type = "all")
 
-    comparison_metrics <- rbind(comparison_metrics,data.frame(metric = "rmse_train",
-                                                              value = rmse(x = colMeans(motrbartmod$y_hat),
-                                                                           y = train$y),
-                                                              model = "motrBART",fold = j))
+    if(ntree_!=1){
+      motrbart_pred <- predict_motr_bart(object = motrbartmod,newdata = x_test_new,type = "all")
 
-    comparison_metrics <- rbind(comparison_metrics,data.frame(metric = "rmse_test",
-                                                              value = rmse(x = colMeans(motrbart_pred),
-                                                                           y = test$y),
-                                                              model = "motrBART",fold = j))
+      comparison_metrics <- rbind(comparison_metrics,data.frame(metric = "rmse_train",
+                                                                value = rmse(x = colMeans(motrbartmod$y_hat),
+                                                                             y = train$y),
+                                                                model = "motrBART",fold = j))
 
-    # Calculating the CRPS as well
-    comparison_metrics <- rbind(comparison_metrics,data.frame(metric = "crps_train",
-                                                              value = crps(y = train$y ,
-                                                                           means = colMeans(motrbartmod$y_hat),
-                                                                           sds = rep(mean(sqrt(motrbartmod$sigma2)), length(train$y) ))$CRPS,
-                                                              model = "motrBART",fold = j))
+      comparison_metrics <- rbind(comparison_metrics,data.frame(metric = "rmse_test",
+                                                                value = rmse(x = colMeans(motrbart_pred),
+                                                                             y = test$y),
+                                                                model = "motrBART",fold = j))
 
-    comparison_metrics <- rbind(comparison_metrics,data.frame(metric = "crps_test",
-                                                              value = crps(y = test$y ,
-                                                                           means = colMeans(motrbart_pred),
-                                                                           sds = rep(mean(sqrt(motrbartmod$sigma2)), length(test$y) ))$CRPS,
-                                                              model = "motrBART",fold = j))
+      # Calculating the CRPS as well
+      comparison_metrics <- rbind(comparison_metrics,data.frame(metric = "crps_train",
+                                                                value = crps(y = train$y ,
+                                                                             means = colMeans(motrbartmod$y_hat),
+                                                                             sds = rep(mean(sqrt(motrbartmod$sigma2)), length(train$y) ))$CRPS,
+                                                                model = "motrBART",fold = j))
 
+      comparison_metrics <- rbind(comparison_metrics,data.frame(metric = "crps_test",
+                                                                value = crps(y = test$y ,
+                                                                             means = colMeans(motrbart_pred),
+                                                                             sds = rep(mean(sqrt(motrbartmod$sigma2)), length(test$y) ))$CRPS,
+                                                                model = "motrBART",fold = j))
+    }
     rm(motrbartmod)
 
   }
@@ -473,12 +576,16 @@ wrapping_comparison <- function(result_){
 
 
 # Getting a model to evaluate variable importance
-var_importance_counter <- function(result_,rep_){
+var_importance_counter <- function(result_,rep_, only_sp_ = FALSE){
 
-  # Getting a counter for times that a variable is used in within a tree
-  p_counter <- numeric(ncol(result_[[rep_]]$cv$train)-1)
-  spBART <- result_[[rep_]]$spBART
-
+  if(!only_sp_){
+    # Getting a counter for times that a variable is used in within a tree
+    p_counter <- numeric(ncol(result_[[rep_]]$cv$train)-1)
+    spBART <- result_[[rep_]]$spBART
+  } else {
+    spBART <- result_
+    p_counter <- numeric(NCOL(spBART$data$x_train))
+  }
   for(i in 501:spBART$mcmc$n_mcmc){
 
     for(t in 1:spBART$prior$n_tree){
@@ -494,3 +601,26 @@ var_importance_counter <- function(result_,rep_){
 
 }
 
+# Getting a model to evaluate variable importance
+tree_length_counter <- function(result_,rep_, only_sp = FALSE){
+
+  # Getting a counter for times that a variable is used in within a tree
+  if(!only_sp){
+    spBART <- result_[[rep_]]$spBART
+  } else {
+    spBART <- result_
+  }
+  matrix_tree <- matrix(0,ncol = spBART$prior$n_tree, nrow = 2000)
+  curr <- 0
+  for(i in 501:spBART$mcmc$n_mcmc){
+    curr <- curr + 1
+    for(t in 1:spBART$prior$n_tree){
+        curr_tree <- spBART$mcmc$all_trees[[i]][[t]]
+        terminals <- get_terminals(curr_tree)
+        matrix_tree[curr,t] <- length(terminals)
+      }
+  }
+
+  return(matrix_tree)
+
+}

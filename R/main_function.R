@@ -2,7 +2,7 @@
 # rm(list=ls())
 source("R/other_functions.R")
 source("R/sim_functions.R")
-source("inst/debugging_rspBART.R")
+# source("inst/debugging_rspBART.R")
 source("R/tree_functions.R")
 # set.seed(42)
 
@@ -29,7 +29,10 @@ rspBART <- function(x_train,
                     usequants = FALSE,
                     motrbart_bool = FALSE,
                     use_bs = FALSE,
-                    plot_preview = FALSE
+                    plot_preview = FALSE,
+                    all_var = FALSE,
+                    scale_init = FALSE,
+                    update_tau_beta = FALSE
 ) {
 
   # Verifying if x_train and x_test are matrices
@@ -350,7 +353,9 @@ rspBART <- function(x_train,
                tau_beta = tau_beta,
                # delta = delta,
                # P = P,
-               node_min_size = node_min_size)
+               node_min_size = node_min_size,
+               all_var = all_var,
+               stump = stump)
 
   #   So to simply interepret the element all_var_splits each element correspond
   #to each variable. Afterwards each element corresponds to a cutpoint; Finally,
@@ -369,13 +374,14 @@ rspBART <- function(x_train,
   trees_fit_test <- matrix(0,nrow = n_tree, ncol  = nrow(x_test_scale))
 
   # For cases where the tree is greater than one;
-  if(n_tree>1){
-    # Initial prediction
-    for(i in 1:n_tree){
-      trees_fit[i,] <- y_scale/n_tree
-    }
+  if(scale_init){
+      if(n_tree>1){
+        # Initial prediction
+        for(i in 1:n_tree){
+          trees_fit[i,] <- y_scale/n_tree
+        }
+      }
   }
-
   # Initialsing the loop
   for(i in 1:n_mcmc){
 
@@ -401,7 +407,11 @@ rspBART <- function(x_train,
 
       # Forcing to grow when only have a stump
       if(length(forest[[t]])==1){
-        verb <- sample(c("grow","change"),size = 1)
+        if(!data$all_var){
+          verb <- sample(c("grow","change"),size = 1)
+        } else {
+          verb <- "grow"
+        }
       }
 
 
@@ -455,7 +465,9 @@ rspBART <- function(x_train,
 
 
     # Updating all other parameters
-    # data$tau_beta <- update_tau_betas(forest = forest,data = data)
+    if(update_tau_beta){
+      data$tau_beta <- update_tau_betas(forest = forest,data = data)
+    }
 
     # Updating delta
     # data$delta <- update_delta(data = data)

@@ -3,24 +3,44 @@ stump <- function(data){
 
   # Creating the base node
   node <- list()
-  node[["node0"]] <- list(
-    # Creating the node number
-    node_number = 0,
-    isRoot = TRUE,
-    # Creating a vector with the tranining index
-    train_index = 1:nrow(data$x_train),
-    test_index = 1:nrow(data$x_test),
-    depth_node = 0,
-    node_var = NA,
-    node_cutpoint_index = NA,
-    left = NA,
-    right = NA,
-    parent_node = NA,
-    ancestors = sample(x = 1:ncol(data$x_train),size = 1),
-    terminal = TRUE,
-    betas_vec = NULL
-  )
 
+  if(!data$all_var){
+      node[["node0"]] <- list(
+        # Creating the node number
+        node_number = 0,
+        isRoot = TRUE,
+        # Creating a vector with the tranining index
+        train_index = 1:nrow(data$x_train),
+        test_index = 1:nrow(data$x_test),
+        depth_node = 0,
+        node_var = NA,
+        node_cutpoint_index = NA,
+        left = NA,
+        right = NA,
+        parent_node = NA,
+        ancestors = sample(x = 1:ncol(data$x_train),size = 1),
+        terminal = TRUE,
+        betas_vec = NULL
+      )
+  } else {
+    node[["node0"]] <- list(
+      # Creating the node number
+      node_number = 0,
+      isRoot = TRUE,
+      # Creating a vector with the tranining index
+      train_index = 1:nrow(data$x_train),
+      test_index = 1:nrow(data$x_test),
+      depth_node = 0,
+      node_var = NA,
+      node_cutpoint_index = NA,
+      left = NA,
+      right = NA,
+      parent_node = NA,
+      ancestors = 1:ncol(data$x_train),
+      terminal = TRUE,
+      betas_vec = NULL
+    )
+  }
   # Returning the node
   return(node)
 
@@ -214,35 +234,77 @@ grow <- function(tree,
   # Calculating the acceptance probability
   acceptance <- exp(-g_loglike+left_loglike+right_loglike+prior_loglike+log_trasition_prob)
 
+  if(data$stump) {
+    acceptance <- acceptance*(-1)
+  }
+
   # Getting the training the left and the right index for the the grown node
   if(stats::runif(n = 1)<acceptance){
-    left_node <- list(node_number = max_index+1,
-                      isRoot = FALSE,
-                      train_index = left_index,
-                      test_index = left_test_index,
-                      depth_node = g_node$depth_node+1,
-                      node_var = p_var,
-                      node_cutpoint_index = sample_cutpoint,
-                      left = NA,
-                      right = NA,
-                      parent_node = g_node_name,
-                      ancestors = c(g_node$ancestors,p_var),
-                      terminal = TRUE,
-                      betas_vec = rep(0,ncol(data$D_train)))
 
-    right_node <- list(node_number = max_index+2,
-                       isRoot = FALSE,
-                       train_index = right_index,
-                       test_index = right_test_index,
-                       depth_node = g_node$depth_node+1,
-                       node_var = p_var,
-                       node_cutpoint_index = sample_cutpoint,
-                       left = NA,
-                       right = NA,
-                       parent_node = g_node_name,
-                       ancestors = c(g_node$ancestors,p_var),
-                       terminal = TRUE,
-                       betas_vec = rep(0,ncol(data$D_train)))
+
+    # Verifying if uses all variables or not
+    if(!data$all_var){
+        left_node <- list(node_number = max_index+1,
+                          isRoot = FALSE,
+                          train_index = left_index,
+                          test_index = left_test_index,
+                          depth_node = g_node$depth_node+1,
+                          node_var = p_var,
+                          node_cutpoint_index = sample_cutpoint,
+                          left = NA,
+                          right = NA,
+                          parent_node = g_node_name,
+                          ancestors = c(g_node$ancestors,p_var),
+                          terminal = TRUE,
+                          betas_vec = rep(0,ncol(data$D_train)))
+
+        right_node <- list(node_number = max_index+2,
+                           isRoot = FALSE,
+                           train_index = right_index,
+                           test_index = right_test_index,
+                           depth_node = g_node$depth_node+1,
+                           node_var = p_var,
+                           node_cutpoint_index = sample_cutpoint,
+                           left = NA,
+                           right = NA,
+                           parent_node = g_node_name,
+                           ancestors = c(g_node$ancestors,p_var),
+                           terminal = TRUE,
+                           betas_vec = rep(0,ncol(data$D_train)))
+    } else {
+
+      if(!identical(g_node$ancestors,1:NCOL(data$x_train))){
+        stop("No match in ancestors")
+      }
+
+      left_node <- list(node_number = max_index+1,
+                        isRoot = FALSE,
+                        train_index = left_index,
+                        test_index = left_test_index,
+                        depth_node = g_node$depth_node+1,
+                        node_var = p_var,
+                        node_cutpoint_index = sample_cutpoint,
+                        left = NA,
+                        right = NA,
+                        parent_node = g_node_name,
+                        ancestors = g_node$ancestors,
+                        terminal = TRUE,
+                        betas_vec = rep(0,ncol(data$D_train)))
+
+      right_node <- list(node_number = max_index+2,
+                         isRoot = FALSE,
+                         train_index = right_index,
+                         test_index = right_test_index,
+                         depth_node = g_node$depth_node+1,
+                         node_var = p_var,
+                         node_cutpoint_index = sample_cutpoint,
+                         left = NA,
+                         right = NA,
+                         parent_node = g_node_name,
+                         ancestors = g_node$ancestors,
+                         terminal = TRUE,
+                         betas_vec = rep(0,ncol(data$D_train)))
+    }
 
     # Modifying the current node
     tree[[g_node_name]]$left = paste0("node",max_index+1)
@@ -364,6 +426,7 @@ change_stump <- function(tree = tree,
     return(grown_tree)
   }
 
+  # Print
   new_ancestor <- sample(change_candidates,size = 1)
 
 
@@ -373,7 +436,7 @@ change_stump <- function(tree = tree,
                            data = data)
 
   # Modifying the node0
-  tree$node0$ancestors <- new_ancestors
+  tree$node0$ancestors <- new_ancestor
 
   # Returning the new tree
   return(tree)
@@ -481,12 +544,15 @@ change <- function(tree,
   old_p_var <- tree[[c_node$left]]$node_var
 
   # Storing new left and right ancestors
-  new_left_ancestors <- tree[[c_node$left]]$ancestors
-  new_left_ancestors[length(new_left_ancestors)] <- p_var
+  if(!data$all_var){
+    new_left_ancestors <- tree[[c_node$left]]$ancestors
+    new_left_ancestors[length(new_left_ancestors)] <- p_var
 
-  new_right_ancestors <- tree[[c_node$right]]$ancestors
-  new_right_ancestors[length(new_right_ancestors)] <- p_var
-
+    new_right_ancestors <- tree[[c_node$right]]$ancestors
+    new_right_ancestors[length(new_right_ancestors)] <- p_var
+  } else {
+    new_left_ancestors <- new_right_ancestors <- 1:NCOL(data$x_train)
+  }
 
   new_c_loglike_left <-  nodeLogLike(curr_part_res = curr_part_res,
                                      index_node = left_index,
@@ -585,13 +651,59 @@ updateBetas <- function(tree,
 # =================
 # Update \tau_betas
 # =================
+update_tau_betas_j <- function(forest,
+                             data){
+
+
+
+  # Setting some default hyperparameters
+  a_tau_beta <- d_tau_beta <- 0.1
+
+  tau_b_shape <- numeric(NCOL(data$x_train))
+  tau_b_rate <- numeric(NCOL(data$x_train))
+
+  # Iterating over all trees
+  for(i in 1:length(forest)){
+
+    # Getting terminal nodes
+    t_nodes_names <- get_terminals(forest[[i]])
+    n_t_nodes <- length(t_nodes_names)
+
+    # Iterating over the terminal nodes
+    for(j in 1:length(t_nodes_names)){
+
+      cu_t <- forest[[i]][[t_nodes_names[j]]]
+
+      for(var_  in 1:NCOL(data$x_train))
+
+
+      leaf_basis_subindex <- unlist(data$basis_subindex[var_]) # Recall to the unique() function here
+
+      if(!is.null(cu_t$betas_vec)){
+        tau_b_shape[var_] <- tau_b_shape + length(leaf_basis_subindex)
+        tau_b_rate[var_] <- tau_b_rate + c(crossprod(cu_t$betas_vec[leaf_basis_subindex]))
+      }
+
+    }
+
+
+    tau_beta_vec_aux <- rgamma(n = 1,
+                               shape = 0.5*tau_b_shape + a_tau_beta,
+                               rate = 0.5*tau_b_rate + d_tau_beta)
+  }
+
+  return(tau_beta_vec_aux)
+
+}
+
+
 update_tau_betas <- function(forest,
                              data){
 
 
 
   # Setting some default hyperparameters
-  a_tau_beta <- d_tau_beta <- 1
+  a_tau_beta <- d_tau_beta <- 0.1
   tau_b_shape <- 0.0
   tau_b_rate <- 0.0
 
@@ -625,8 +737,6 @@ update_tau_betas <- function(forest,
   return(tau_beta_vec_aux)
 
 }
-
-
 
 
 # ===================
